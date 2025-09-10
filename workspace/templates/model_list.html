@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}Models - {{ category_label }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'results:home' %}">Home</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ category_label }}</li>
+                    </ol>
+                </nav>
+                <h1 class="card-title">📋 Models: {{ category_label }}</h1>
+                <p class="text-muted">Click on any model name to view its subgraph details</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="mb-0">Model List</h3>
+                <span class="badge bg-primary fs-6">{{ models|length }} model{{ models|length|pluralize }}</span>
+            </div>
+            <div class="card-body">
+                {% if models %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Model Name</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Device</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Run Time (ms)</th>
+                                    <th scope="col">Run Time Gain (%)</th>
+                                    <th scope="col">Run Time Diff (ms)</th>
+                                    <th scope="col">Compile Time (ms)</th>
+                                    <th scope="col">Compile Time Gain (%)</th>
+                                    <th scope="col">Workspace (bytes)</th>
+                                    <th scope="col">Workspace Gain (%)</th>
+                                    <th scope="col">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for model in models %}
+                                <tr>
+                                    <th scope="row">{{ forloop.counter }}</th>
+                                    <td>
+                                        <a href="{% url 'results:model_detail' model.model_name %}" class="model-link">
+                                            <strong>{{ model.display_name|truncatechars:30 }}</strong>
+                                        </a>
+                                    </td>
+                                    <td><span class="badge bg-secondary">{{ model.name }}</span></td>
+                                    <td>{{ model.device }}</td>
+                                    <td>
+                                        {% if model.status == 'PASS' %}
+                                            <span class="badge bg-success">{{ model.status }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ model.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ model.run_time_ms|floatformat:3 }}</td>
+                                    <td>
+                                        {% if model.run_time_gain > 0 %}
+                                            <span class="gain-positive">+{{ model.run_time_gain|floatformat:2 }}%</span>
+                                        {% elif model.run_time_gain < 0 %}
+                                            <span class="gain-negative">{{ model.run_time_gain|floatformat:2 }}%</span>
+                                        {% else %}
+                                            <span class="gain-neutral">{{ model.run_time_gain|floatformat:2 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ model.run_time_diff_ms|floatformat:4 }}</td>
+                                    <td>{{ model.compile_time_ms|floatformat:1 }}</td>
+                                    <td>
+                                        {% if model.compile_time_gain > 0 %}
+                                            <span class="text-success">+{{ model.compile_time_gain|floatformat:2 }}%</span>
+                                        {% elif model.compile_time_gain < 0 %}
+                                            <span class="text-danger">{{ model.compile_time_gain|floatformat:2 }}%</span>
+                                        {% else %}
+                                            <span class="text-muted">{{ model.compile_time_gain|floatformat:2 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ model.workspace_bytes|filesizeformat }}</td>
+                                    <td>
+                                        {% if model.workspace_gain > 0 %}
+                                            <span class="text-success">+{{ model.workspace_gain|floatformat:2 }}%</span>
+                                        {% elif model.workspace_gain < 0 %}
+                                            <span class="text-danger">{{ model.workspace_gain|floatformat:2 }}%</span>
+                                        {% else %}
+                                            <span class="text-muted">{{ model.workspace_gain|floatformat:2 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'results:model_detail' model.model_name %}" class="btn btn-outline-primary btn-sm">
+                                            Subgraphs →
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <div class="display-1 text-muted mb-3">📊</div>
+                        <h4>No models found in this category</h4>
+                        <p class="text-muted">There are currently no models with performance in the {{ category_label }} range.</p>
+                        <a href="{% url 'results:home' %}" class="btn btn-primary">
+                            ← Back to Overview
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if models %}
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">📊 Category Summary</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Performance Range:</strong> {{ category_label }}</p>
+                <p><strong>Total Models:</strong> {{ models|length }}</p>
+                {% if models %}
+                    {% with models|first as first_model %}
+                        {% with models|last as last_model %}
+                            {% if models|length > 1 %}
+                                <p><strong>Best Performance:</strong> 
+                                    {% for model in models %}
+                                        {% if forloop.first %}{{ model.run_time_gain }}%{% endif %}
+                                    {% endfor %}
+                                </p>
+                                <p><strong>Worst Performance:</strong> 
+                                    {% for model in models %}
+                                        {% if forloop.last %}{{ model.run_time_gain }}%{% endif %}
+                                    {% endfor %}
+                                </p>
+                            {% endif %}
+                        {% endwith %}
+                    {% endwith %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">🔍 Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'results:home' %}" class="btn btn-outline-primary">
+                        ← Back to Overview
+                    </a>
+                    {% if models %}
+                        <a href="{% url 'results:model_detail' models.0.model_name %}" class="btn btn-outline-success">
+                            View Top Model Details
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

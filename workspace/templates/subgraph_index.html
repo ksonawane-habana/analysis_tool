@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ subgraph_name }} - GUID Search Results{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'results:home' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript:history.back()">Models</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'results:model_detail' model_name %}">{{ model_name }}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ subgraph_name }}</li>
+                    </ol>
+                </nav>
+                <h1 class="card-title">🔍 Subgraph GUID Search Results</h1>
+                <p class="text-muted">GUID values found in the post-graph compilation files</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">📊 Subgraph Details</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Model Information</h5>
+                        <hr>
+                        <p><strong>Model Name:</strong><br>
+                           <span class="badge bg-secondary">{{ model_name }}</span></p>
+                        
+                        <p><strong>Subgraph Name:</strong><br>
+                           <span class="badge bg-info">{{ subgraph_name }}</span></p>
+                    </div>
+                    <div class="col-md-12">
+                        <h5>GUID Search Results - Side by Side Comparison</h5>
+                        <hr>
+                        <p><strong>Index in File:</strong> 
+                            {% if index_in_file >= 0 %}
+                                <span class="badge bg-info">{{ index_in_file }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ index_in_file }}</span>
+                            {% endif %}
+                        </p>
+                        
+                        {% if is_supported_model %}
+                            <div class="row">
+                                <!-- Feature GUIDs Column -->
+                                <div class="col-md-6">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">✅ Feature Enabled GUIDs</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if feature_guid_results %}
+                                                {% if feature_guid_results.0|slice:":6" == "error:" %}
+                                                    <div class="alert alert-warning" role="alert">
+                                                        <small>{{ feature_guid_results.0|slice:"6:" }}</small>
+                                                    </div>
+                                                {% else %}
+                                                    <p class="mb-2"><small><strong>Found {{ feature_guid_results|length }} unique GUID{{ feature_guid_results|length|pluralize }}</strong></small></p>
+                                                    <div class="guid-list" style="max-height: 400px; overflow-y: auto;">
+                                                        {% for guid in feature_guid_results %}
+                                                            <div class="mb-2 p-2 bg-light rounded border-start border-success border-3">
+                                                                {% if 'fused_kernel_' in guid %}
+                                                                    <a href="{% url 'results:mlir_content' model_name guid 'feature' %}" class="text-decoration-none">
+                                                                        <code class="text-success small">{{ guid }}</code>
+                                                                        <small class="text-muted d-block">🔗 Click to view MLIR</small>
+                                                                    </a>
+                                                                {% else %}
+                                                                    <code class="text-success small">{{ guid }}</code>
+                                                                {% endif %}
+                                                                <button class="btn btn-sm btn-outline-success ms-1" onclick="copyGuidToClipboard('feature-guid-{{ forloop.counter }}', this)">
+                                                                    📋
+                                                                </button>
+                                                                <span class="d-none" id="feature-guid-{{ forloop.counter }}">{{ guid }}</span>
+                                                            </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    <div class="mt-2">
+                                                        <button class="btn btn-sm btn-success" onclick="copyAllFeatureGuidsToClipboard()">
+                                                            📋 Copy All Feature GUIDs
+                                                        </button>
+                                                        <div class="d-none" id="allFeatureGuids">{% for guid in feature_guid_results %}{{ guid }}{% if not forloop.last %}
+{% endif %}{% endfor %}</div>
+                                                    </div>
+                                                {% endif %}
+                                            {% else %}
+                                                <div class="alert alert-info" role="alert">
+                                                    <small>No feature GUIDs found</small>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Without Feature GUIDs Column -->
+                                <div class="col-md-6">
+                                    <div class="card border-warning">
+                                        <div class="card-header bg-warning text-dark">
+                                            <h6 class="mb-0">⚠️ Without Feature GUIDs</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if withoutfeature_guid_results %}
+                                                {% if withoutfeature_guid_results.0|slice:":6" == "error:" %}
+                                                    <div class="alert alert-warning" role="alert">
+                                                        <small>{{ withoutfeature_guid_results.0|slice:"6:" }}</small>
+                                                    </div>
+                                                {% else %}
+                                                    <p class="mb-2"><small><strong>Found {{ withoutfeature_guid_results|length }} unique GUID{{ withoutfeature_guid_results|length|pluralize }}</strong></small></p>
+                                                    <div class="guid-list" style="max-height: 400px; overflow-y: auto;">
+                                                        {% for guid in withoutfeature_guid_results %}
+                                                            <div class="mb-2 p-2 bg-light rounded border-start border-warning border-3">
+                                                                {% if 'fused_kernel_' in guid %}
+                                                                    <a href="{% url 'results:mlir_content' model_name guid 'withoutfeature' %}" class="text-decoration-none">
+                                                                        <code class="text-warning-emphasis small">{{ guid }}</code>
+                                                                        <small class="text-muted d-block">🔗 Click to view MLIR</small>
+                                                                    </a>
+                                                                {% else %}
+                                                                    <code class="text-warning-emphasis small">{{ guid }}</code>
+                                                                {% endif %}
+                                                                <button class="btn btn-sm btn-outline-warning ms-1" onclick="copyGuidToClipboard('withoutfeature-guid-{{ forloop.counter }}', this)">
+                                                                    📋
+                                                                </button>
+                                                                <span class="d-none" id="withoutfeature-guid-{{ forloop.counter }}">{{ guid }}</span>
+                                                            </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    <div class="mt-2">
+                                                        <button class="btn btn-sm btn-warning" onclick="copyAllWithoutFeatureGuidsToClipboard()">
+                                                            📋 Copy All Without Feature GUIDs
+                                                        </button>
+                                                        <div class="d-none" id="allWithoutFeatureGuids">{% for guid in withoutfeature_guid_results %}{{ guid }}{% if not forloop.last %}
+{% endif %}{% endfor %}</div>
+                                                    </div>
+                                                {% endif %}
+                                            {% else %}
+                                                <div class="alert alert-info" role="alert">
+                                                    <small>No without-feature GUIDs found</small>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Comparison Summary -->
+                            {% if feature_guid_results and withoutfeature_guid_results and feature_guid_results.0|slice:":6" != "error:" and withoutfeature_guid_results.0|slice:":6" != "error:" %}
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div class="card border-info">
+                                        <div class="card-header bg-info text-white">
+                                            <h6 class="mb-0">� Comparison Summary</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row text-center">
+                                                <div class="col-md-4">
+                                                    <h6 class="text-success">Feature GUIDs</h6>
+                                                    <h4><span class="badge bg-success">{{ feature_guid_results|length }}</span></h4>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <h6 class="text-warning">Without Feature GUIDs</h6>
+                                                    <h4><span class="badge bg-warning">{{ withoutfeature_guid_results|length }}</span></h4>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <h6 class="text-info">Difference</h6>
+                                                    <h4><span class="badge bg-info">{{ feature_guid_results|length }} vs {{ withoutfeature_guid_results|length }}</span></h4>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                        {% else %}
+                            <div class="alert alert-info" role="alert">
+                                <h6 class="alert-heading">ℹ️ Model Not Supported</h6>
+                                <p class="mb-2">Could not find the JSON file for this model at the expected location:</p>
+                                <p class="mb-1"><small><code>{{ json_file_path }}</code></small></p>
+                                <p class="mb-1">Please ensure the JSON file exists at this path.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">📝 About GUID Search</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>What is this page showing?</strong></p>
+                <p class="small">This page finds the <code>index_in_file</code> for a subgraph and then searches for GUID values in the corresponding post-graph JSON file.</p>
+                
+                <p><strong>Search Process:</strong></p>
+                <ol class="small">
+                    <li>Find index_in_file from <code>.com.json</code></li>
+                    <li>Search for <code>&lt;MODEL_NAME&gt;.g_&lt;index&gt;.*.*.post.json</code></li>
+                    <li>Extract all GUID values from the file</li>
+                </ol>
+                
+                <p><strong>Data Sources:</strong></p>
+                <p class="small">
+                    <strong>Feature:</strong> <code>/software/users/.../feature/&lt;MODEL&gt;/logs-compile/...</code><br>
+                    <strong>WithoutFeature:</strong> <code>/software/users/.../withoutfeature/&lt;MODEL&gt;/logs-compile/...</code>
+                </p>
+                
+                {% if is_supported_model %}
+                    <div class="alert alert-light mt-3">
+                        <h6>📁 Files Status</h6>
+                        <p class="small mb-1"><strong>Main JSON:</strong> Found</p>
+                        {% if feature_post_json_path %}
+                            <p class="small mb-1"><strong>Feature Post JSON:</strong> ✅ Found</p>
+                        {% else %}
+                            <p class="small mb-1"><strong>Feature Post JSON:</strong> ❌ Not found</p>
+                        {% endif %}
+                        {% if withoutfeature_post_json_path %}
+                            <p class="small mb-0"><strong>WithoutFeature Post JSON:</strong> ✅ Found</p>
+                        {% else %}
+                            <p class="small mb-0"><strong>WithoutFeature Post JSON:</strong> ❌ Not found</p>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-light mt-3">
+                        <h6>❌ Files Missing</h6>
+                        <p class="small mb-0">Could not locate required JSON files. Check file paths and permissions.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card border-success mt-3">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">🔍 Navigation</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'results:model_detail' model_name %}" class="btn btn-outline-primary">
+                        ← Back to Subgraphs
+                    </a>
+                    <a href="{% url 'results:home' %}" class="btn btn-outline-success">
+                        🏠 Back to Home
+                    </a>
+                    <button class="btn btn-outline-info" onclick="window.print()">
+                        🖨️ Print Page
+                    </button>
+                </div>
+                
+                {% comment %}
+                <!-- Copy functionality is now integrated into the side-by-side comparison above -->
+                {% endcomment %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if is_supported_model %}
+<script>
+function copyGuidToClipboard(elementId, buttonElement) {
+    const guidValue = document.getElementById(elementId).textContent;
+    navigator.clipboard.writeText(guidValue).then(function() {
+        // Show temporary feedback
+        const originalText = buttonElement.textContent;
+        buttonElement.textContent = '✅';
+        buttonElement.classList.remove('btn-outline-success', 'btn-outline-warning');
+        buttonElement.classList.add('btn-success');
+        
+        setTimeout(function() {
+            buttonElement.textContent = originalText;
+            buttonElement.classList.remove('btn-success');
+            if (elementId.includes('feature-guid')) {
+                buttonElement.classList.add('btn-outline-success');
+            } else {
+                buttonElement.classList.add('btn-outline-warning');
+            }
+        }, 1500);
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+
+function copyAllFeatureGuidsToClipboard() {
+    const allGuids = document.getElementById('allFeatureGuids').textContent;
+    navigator.clipboard.writeText(allGuids).then(function() {
+        // Show temporary feedback
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = '✅ Feature GUIDs Copied!';
+        button.classList.remove('btn-success');
+        button.classList.add('btn-dark');
+        
+        setTimeout(function() {
+            button.textContent = originalText;
+            button.classList.remove('btn-dark');
+            button.classList.add('btn-success');
+        }, 3000);
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+
+function copyAllWithoutFeatureGuidsToClipboard() {
+    const allGuids = document.getElementById('allWithoutFeatureGuids').textContent;
+    navigator.clipboard.writeText(allGuids).then(function() {
+        // Show temporary feedback
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = '✅ Without Feature GUIDs Copied!';
+        button.classList.remove('btn-warning');
+        button.classList.add('btn-dark');
+        
+        setTimeout(function() {
+            button.textContent = originalText;
+            button.classList.remove('btn-dark');
+            button.classList.add('btn-warning');
+        }, 3000);
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}Model Performance Analysis{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h1 class="card-title text-center mb-4">🚀 Model Performance Overview</h1>
+                <p class="text-muted text-center">Click on any bar to view models in that performance category</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">Runtime Gain Distribution</h3>
+                <small class="text-muted">Models grouped by runtime performance improvement/degradation</small>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">🎯 Performance Legend</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <h6 class="text-danger">Degrading Models:</h6>
+                        <ul class="list-unstyled">
+                            <li><span class="badge bg-danger">< -10%</span> Significant degradation</li>
+                            <li><span class="badge bg-warning">-10% to -5%</span> Moderate degradation</li>
+                            <li><span class="badge bg-secondary">-5% to 0%</span> Minor degradation</li>
+                        </ul>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="text-success">Improving Models:</h6>
+                        <ul class="list-unstyled">
+                            <li><span class="badge bg-success">0% to 5%</span> Minor improvement</li>
+                            <li><span class="badge bg-info">5% to 10%</span> Moderate improvement</li>
+                            <li><span class="badge bg-primary">> 10%</span> Significant improvement</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">📈 Quick Stats</h5>
+            </div>
+            <div class="card-body">
+                <div id="statsContainer">
+                    <p><strong>Total Models:</strong> <span id="totalModels">-</span></p>
+                    <p><strong>Improving Models:</strong> <span id="improvingModels" class="text-success">-</span></p>
+                    <p><strong>Degrading Models:</strong> <span id="degradingModels" class="text-danger">-</span></p>
+                    <p><strong>Performance Ratio:</strong> <span id="performanceRatio">-</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chartData = {{ chart_data|safe }};
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    
+    const chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: 'Number of Models',
+                data: chartData.data,
+                backgroundColor: chartData.colors,
+                borderColor: chartData.colors.map(color => color.replace('0.8', '1')),
+                borderWidth: 2,
+                hoverBackgroundColor: chartData.colors.map(color => color + '90'),
+                hoverBorderWidth: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Model Performance Distribution',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                },
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Models'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Runtime Gain Percentage'
+                    }
+                }
+            },
+            onClick: function(event, elements) {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const label = chartData.labels[index];
+                    
+                    // Use dynamic category mapping from the data
+                    const category = chartData.categoryMapping[label];
+                    if (category) {
+                        window.location.href = `/models/${category}/`;
+                    }
+                }
+            }
+        }
+    });
+    
+    // Update statistics dynamically
+    const totalModels = chartData.data.reduce((a, b) => a + b, 0);
+    let improvingModels = 0;
+    let degradingModels = 0;
+    
+    // Count improving vs degrading based on label ranges
+    for (let i = 0; i < chartData.labels.length; i++) {
+        const label = chartData.labels[i];
+        const count = chartData.data[i];
+        
+        // Check if the label indicates improvement (contains positive values) or degradation
+        if (label.includes('≥') || label.includes('to')) {
+            // Parse the range to determine if it's improving or degrading
+            const numbers = label.match(/-?\d+/g);
+            if (numbers && numbers.length > 0) {
+                const firstNumber = parseInt(numbers[0]);
+                if (firstNumber >= 0) {
+                    improvingModels += count;
+                } else {
+                    degradingModels += count;
+                }
+            }
+        }
+    }
+    
+    const ratio = totalModels > 0 ? (improvingModels / totalModels * 100).toFixed(1) : 0;
+    
+    document.getElementById('totalModels').textContent = totalModels;
+    document.getElementById('improvingModels').textContent = improvingModels;
+    document.getElementById('degradingModels').textContent = degradingModels;
+    document.getElementById('performanceRatio').textContent = `${ratio}% improving`;
+});
+</script>
+{% endblock %}

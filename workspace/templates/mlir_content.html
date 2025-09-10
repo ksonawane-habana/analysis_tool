@@ -1,0 +1,391 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ fused_kernel_name }} - MLIR Content{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'results:home' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript:history.back()">GUID Results</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ fused_kernel_name }}</li>
+                    </ol>
+                </nav>
+                <h1 class="card-title">🔧 MLIR Content Viewer</h1>
+                <p class="text-muted">Multi-Level Intermediate Representation file content</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-0">📄 {{ fused_kernel_name }}</h3>
+                    <small>Model: {{ model_name }}</small>
+                    {% if source_type %}
+                        <br><small>Source: <span class="badge bg-light text-dark">{{ search_label }}</span></small>
+                    {% endif %}
+                </div>
+                {% if file_found %}
+                    <div class="text-end">
+                        <span class="badge bg-success">File Found</span>
+                        {% if source_type %}
+                            {% if source_type == "feature" %}
+                                <span class="badge bg-info">{{ search_label }}</span>
+                            {% elif source_type == "withoutfeature" %}
+                                <span class="badge bg-warning">{{ search_label }}</span>
+                            {% endif %}
+                        {% endif %}
+                        {% if file_stats.lines %}
+                            <span class="badge bg-info">{{ file_stats.lines }} lines</span>
+                        {% endif %}
+                        {% if file_stats.size %}
+                            <span class="badge bg-secondary">{{ file_stats.size|filesizeformat }}</span>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <span class="badge bg-danger">File Not Found</span>
+                {% endif %}
+            </div>
+            
+            <div class="card-body p-0">
+                {% if file_found %}
+                    <div class="d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
+                        <div>
+                            <strong>File Path:</strong> 
+                            <code class="text-primary">{{ mlir_file_path }}</code>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="copyContentToClipboard()">
+                                📋 Copy Content
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary me-2" onclick="downloadFile()">
+                                💾 Download
+                            </button>
+                            <button class="btn btn-sm btn-outline-info me-2" onclick="toggleLineNumbers()">
+                                🔢 Toggle Line Numbers
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="toggleTpcHighlighting()">
+                                🎨 Toggle TPC Highlighting
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- MLIR Content Display -->
+                    <div class="mlir-content-container" style="position: relative;">
+                        <pre id="mlirContent" class="mb-0 p-3" style="background-color: #f8f9fa; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; max-height: 70vh; overflow: auto; white-space: pre-wrap; word-wrap: break-word;"><code class="language-mlir" id="mlirCode">{{ mlir_content }}</code></pre>
+                    </div>
+                    
+                {% else %}
+                    <div class="p-4">
+                        <div class="alert alert-danger" role="alert">
+                            <h4 class="alert-heading">❌ File Not Found</h4>
+                            <p class="mb-3">{{ error_message }}</p>
+                            
+                            <hr>
+                            <h6>Search Details:</h6>
+                            <p class="mb-1"><strong>Pattern:</strong> <code>{{ pattern_searched }}</code></p>
+                            <p class="mb-1"><strong>Searched in:</strong> <code>{{ search_path }}</code></p>
+                            <p class="mb-1"><strong>Source Type:</strong> <span class="badge bg-secondary">{{ search_label }}</span></p>
+                            
+                            <div class="mt-3">
+                                <h6>Possible causes:</h6>
+                                <ul class="mb-0">
+                                    <li>The fused kernel name might be slightly different</li>
+                                    <li>The MLIR file might not have been generated</li>
+                                    <li>File permissions might be restricting access</li>
+                                    <li>The model compilation logs might be in a different location</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if file_found %}
+<!-- Content Statistics -->
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📊 Content Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h6 class="text-primary">Total Lines</h6>
+                        <h4><span class="badge bg-primary">{{ file_stats.lines|default:0 }}</span></h4>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-success">File Size</h6>
+                        <h4><span class="badge bg-success">{{ file_stats.size|filesizeformat }}</span></h4>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-info">Characters</h6>
+                        <h4><span class="badge bg-info">{{ mlir_content|length|floatformat:0 }}</span></h4>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-warning">Words (Est.)</h6>
+                        <h4><span class="badge bg-warning">{{ mlir_content|wordcount }}</span></h4>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="alert alert-info" role="alert">
+                            <h6 class="alert-heading">🎨 TPC Kernel Highlighting</h6>
+                            <p class="mb-0 small">TPC kernels (e.g., <code>tpckernel.mult</code>, <code>tpckernel.cast</code>) are automatically highlighted with a <span style="background-color: #ffd700; color: #333; font-weight: bold; padding: 1px 3px; border-radius: 2px;">golden background</span> to make them easier to identify in the MLIR code.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">🔍 Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="searchInContent()">
+                        🔍 Search in Content
+                    </button>
+                    <button class="btn btn-outline-info" onclick="goToLine()">
+                        ➡️ Go to Line
+                    </button>
+                    <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                        ← Back to GUIDs
+                    </a>
+                    <a href="{% url 'results:home' %}" class="btn btn-outline-success">
+                        🏠 Back to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if file_found %}
+<script>
+let lineNumbersVisible = false;
+
+// Function to highlight TPC kernels in MLIR content
+function highlightTpcKernels() {
+    const codeElement = document.getElementById('mlirCode');
+    let content = codeElement.innerHTML || codeElement.textContent;
+    
+    // Only highlight if TPC highlighting is enabled
+    if (!window.tpcHighlightingEnabled) {
+        return;
+    }
+    
+    // Define TPC kernel patterns to highlight
+    const tpcKernelPatterns = [
+        // Common TPC kernels
+        'tpckernel\\.mult',
+        'tpckernel\\.cast',
+        'tpckernel\\.add',
+        'tpckernel\\.sub',
+        'tpckernel\\.div',
+        'tpckernel\\.relu',
+        'tpckernel\\.tanh',
+        'tpckernel\\.sigmoid',
+        'tpckernel\\.exp',
+        'tpckernel\\.log',
+        'tpckernel\\.sqrt',
+        'tpckernel\\.max',
+        'tpckernel\\.min',
+        'tpckernel\\.abs',
+        'tpckernel\\.neg',
+        'tpckernel\\.convert',
+        'tpckernel\\.reshape',
+        'tpckernel\\.transpose',
+        'tpckernel\\.slice',
+        'tpckernel\\.concat',
+        'tpckernel\\.reduce_sum',
+        'tpckernel\\.reduce_mean',
+        'tpckernel\\.reduce_max',
+        'tpckernel\\.reduce_min',
+        'tpckernel\\.matmul',
+        'tpckernel\\.conv2d',
+        'tpckernel\\.pool2d',
+        'tpckernel\\.batch_norm',
+        'tpckernel\\.layer_norm',
+        'tpckernel\\.softmax',
+        'tpckernel\\.gather',
+        'tpckernel\\.scatter',
+        'tpckernel\\.where',
+        'tpckernel\\.select',
+        // Generic pattern for any tpckernel
+        'tpckernel\\.[a-zA-Z_][a-zA-Z0-9_]*'
+    ];
+    
+    // Create a combined regex pattern
+    const combinedPattern = tpcKernelPatterns.join('|');
+    const regex = new RegExp(`\\b(${combinedPattern})\\b`, 'gi');
+    
+    // Apply highlighting - preserve existing HTML tags
+    const highlightedContent = content.replace(regex, '<span class="tpc-kernel-highlight" style="background-color: #ffd700; color: #333; font-weight: bold; padding: 1px 3px; border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">$1</span>');
+    
+    codeElement.innerHTML = highlightedContent;
+}
+
+// Initialize highlighting state
+window.tpcHighlightingEnabled = true;
+
+function toggleTpcHighlighting() {
+    window.tpcHighlightingEnabled = !window.tpcHighlightingEnabled;
+    const codeElement = document.getElementById('mlirCode');
+    
+    if (window.tpcHighlightingEnabled) {
+        // Enable highlighting
+        highlightTpcKernels();
+        event.target.textContent = '🎨 Disable TPC Highlighting';
+        event.target.classList.remove('btn-outline-warning');
+        event.target.classList.add('btn-warning');
+    } else {
+        // Disable highlighting - remove TPC highlight spans
+        let content = codeElement.innerHTML;
+        content = content.replace(/<span class="tpc-kernel-highlight"[^>]*>/gi, '');
+        content = content.replace(/<\/span>/gi, '');
+        codeElement.innerHTML = content;
+        event.target.textContent = '🎨 Enable TPC Highlighting';
+        event.target.classList.remove('btn-warning');
+        event.target.classList.add('btn-outline-warning');
+    }
+}
+
+// Call highlighting function when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    highlightTpcKernels();
+});
+
+function copyContentToClipboard() {
+    // Get the original content without HTML highlighting
+    const content = document.getElementById('mlirCode').textContent;
+    navigator.clipboard.writeText(content).then(function() {
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = '✅ Copied!';
+        button.classList.remove('btn-outline-primary');
+        button.classList.add('btn-success');
+        
+        setTimeout(function() {
+            button.textContent = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-primary');
+        }, 2000);
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+
+function downloadFile() {
+    // Get the original content without HTML highlighting
+    const content = document.getElementById('mlirCode').textContent;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = '{{ fused_kernel_name }}.mlir';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+}
+
+function toggleLineNumbers() {
+    const contentElement = document.getElementById('mlirCode');
+    const content = contentElement.textContent;
+    
+    if (!lineNumbersVisible) {
+        // Add line numbers
+        const lines = content.split('\n');
+        const numberedLines = lines.map((line, index) => 
+            `<span class="line-number" style="color: #6c757d; margin-right: 10px; user-select: none;">${(index + 1).toString().padStart(4, ' ')}</span>${line}`
+        );
+        contentElement.innerHTML = numberedLines.join('\n');
+        // Re-apply TPC kernel highlighting
+        highlightTpcKernels();
+        lineNumbersVisible = true;
+        event.target.textContent = '🔢 Hide Line Numbers';
+    } else {
+        // Remove line numbers and re-apply highlighting
+        contentElement.innerHTML = content;
+        highlightTpcKernels();
+        lineNumbersVisible = false;
+        event.target.textContent = '🔢 Show Line Numbers';
+    }
+}
+
+function searchInContent() {
+    const searchTerm = prompt('Enter text to search for:');
+    if (searchTerm) {
+        const contentElement = document.getElementById('mlirCode');
+        const content = contentElement.textContent;
+        const regex = new RegExp(searchTerm, 'gi');
+        const matches = content.match(regex);
+        
+        if (matches) {
+            alert(`Found ${matches.length} occurrence(s) of "${searchTerm}"`);
+            // Highlight the search term while preserving TPC kernel highlighting
+            let highlightedContent = content.replace(regex, `<mark style="background-color: yellow; padding: 2px;">$&</mark>`);
+            contentElement.innerHTML = highlightedContent;
+            // Re-apply TPC kernel highlighting
+            highlightTpcKernels();
+        } else {
+            alert(`No occurrences of "${searchTerm}" found.`);
+        }
+    }
+}
+
+function goToLine() {
+    const lineNumber = prompt('Enter line number to go to:');
+    if (lineNumber && !isNaN(lineNumber)) {
+        const contentElement = document.getElementById('mlirCode');
+        const content = contentElement.textContent;
+        const lines = content.split('\n');
+        const targetLine = parseInt(lineNumber) - 1;
+        
+        if (targetLine >= 0 && targetLine < lines.length) {
+            // Scroll to approximate position
+            const lineHeight = 1.4 * 12; // line-height * font-size
+            const scrollPosition = targetLine * lineHeight;
+            document.getElementById('mlirContent').scrollTop = scrollPosition;
+            
+            // Highlight the target line temporarily
+            lines[targetLine] = `<span style="background-color: #fff3cd; display: block; padding: 2px;">${lines[targetLine]}</span>`;
+            contentElement.innerHTML = lines.join('\n');
+            
+            // Re-apply TPC kernel highlighting
+            highlightTpcKernels();
+            
+            // Remove highlight after 3 seconds
+            setTimeout(function() {
+                lines[targetLine] = lines[targetLine].replace(/<span[^>]*>|<\/span>/g, '');
+                contentElement.innerHTML = lines.join('\n');
+                highlightTpcKernels();
+            }, 3000);
+        } else {
+            alert(`Line ${lineNumber} not found. File has ${lines.length} lines.`);
+        }
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

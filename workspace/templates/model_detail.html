@@ -1,0 +1,284 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ model_name }} - Subgraphs{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'results:home' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript:history.back()">Models</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ model_name }}</li>
+                    </ol>
+                </nav>
+                <h1 class="card-title">🔬 {{ model_name }} - Subgraph Analysis</h1>
+                <p class="text-muted">Detailed performance breakdown by subgraphs, sorted by runtime gain</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="mb-0">Subgraph Performance</h3>
+                <span class="badge bg-primary fs-6">{{ subgraphs|length }} subgraph{{ subgraphs|length|pluralize }}</span>
+            </div>
+            <div class="card-body">
+                {% if subgraphs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Subgraph Name</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Device</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Run Time (ms)</th>
+                                    <th scope="col">Run Time Gain (%)</th>
+                                    <th scope="col">Run Time Diff (ms)</th>
+                                    <th scope="col">Compile Time (ms)</th>
+                                    <th scope="col">Compile Time Gain (%)</th>
+                                    <th scope="col">Workspace (bytes)</th>
+                                    <th scope="col">Workspace Gain (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subgraph in subgraphs %}
+                                <tr>
+                                    <th scope="row">{{ forloop.counter }}</th>
+                                    <td>
+                                        <a href="{% url 'results:subgraph_index' model_name subgraph.subgraph_name %}" class="text-decoration-none">
+                                            <strong>{{ subgraph.subgraph_name|truncatechars:40 }}</strong>
+                                            <small class="text-muted d-block">Click for index info</small>
+                                        </a>
+                                    </td>
+                                    <td><span class="badge bg-secondary">{{ subgraph.name }}</span></td>
+                                    <td>{{ subgraph.device }}</td>
+                                    <td>
+                                        {% if subgraph.status == 'PASS' %}
+                                            <span class="badge bg-success">{{ subgraph.status }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ subgraph.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ subgraph.run_time_ms|floatformat:4 }}</td>
+                                    <td>
+                                        {% if subgraph.run_time_gain > 0 %}
+                                            <span class="gain-positive">+{{ subgraph.run_time_gain|floatformat:2 }}%</span>
+                                        {% elif subgraph.run_time_gain < 0 %}
+                                            <span class="gain-negative">{{ subgraph.run_time_gain|floatformat:2 }}%</span>
+                                        {% else %}
+                                            <span class="gain-neutral">{{ subgraph.run_time_gain|floatformat:2 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ subgraph.run_time_diff_ms|floatformat:6 }}</td>
+                                    <td>{{ subgraph.compile_time_ms|floatformat:1 }}</td>
+                                    <td>
+                                        {% if subgraph.compile_time_gain > 0 %}
+                                            <span class="text-success">+{{ subgraph.compile_time_gain|floatformat:2 }}%</span>
+                                        {% elif subgraph.compile_time_gain < 0 %}
+                                            <span class="text-danger">{{ subgraph.compile_time_gain|floatformat:2 }}%</span>
+                                        {% else %}
+                                            <span class="text-muted">{{ subgraph.compile_time_gain|floatformat:2 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ subgraph.workspace_bytes|filesizeformat }}</td>
+                                    <td>
+                                        {% if subgraph.workspace_gain > 0 %}
+                                            <span class="text-success">+{{ subgraph.workspace_gain|floatformat:2 }}%</span>
+                                        {% elif subgraph.workspace_gain < 0 %}
+                                            <span class="text-danger">{{ subgraph.workspace_gain|floatformat:2 }}%</span>
+                                        {% else %}
+                                            <span class="text-muted">{{ subgraph.workspace_gain|floatformat:2 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <div class="display-1 text-muted mb-3">🔍</div>
+                        <h4>No subgraph data available</h4>
+                        <p class="text-muted">Subgraph performance data for {{ model_name }} is not currently available.</p>
+                        <a href="{% url 'results:home' %}" class="btn btn-primary">
+                            ← Back to Overview
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if subgraphs %}
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📈 Performance Visualization</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="subgraphChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">📊 Model Summary</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Model:</strong> {{ model_name }}</p>
+                <p><strong>Total Subgraphs:</strong> {{ subgraphs|length }}</p>
+                
+                {% if subgraphs %}
+                    {% with improving=0 degrading=0 %}
+                        {% for subgraph in subgraphs %}
+                            {% if subgraph.run_time_gain > 0 %}
+                                {% with improving=improving|add:1 %}{% endwith %}
+                            {% elif subgraph.run_time_gain < 0 %}
+                                {% with degrading=degrading|add:1 %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        <p><strong>Improving Subgraphs:</strong> 
+                            <span class="text-success">
+                                {% for subgraph in subgraphs %}{% if subgraph.run_time_gain > 0 %}1{% else %}0{% endif %}{% endfor %}
+                            </span>
+                        </p>
+                        <p><strong>Degrading Subgraphs:</strong> 
+                            <span class="text-danger">
+                                {% for subgraph in subgraphs %}{% if subgraph.run_time_gain < 0 %}1{% else %}0{% endif %}{% endfor %}
+                            </span>
+                        </p>
+                        
+                        {% if subgraphs|length > 0 %}
+                            <p><strong>Best Subgraph:</strong> {{ subgraphs.0.subgraph_name }}</p>
+                            <p><strong>Best Gain:</strong> 
+                                <span class="{% if subgraphs.0.run_time_gain > 0 %}gain-positive{% else %}gain-negative{% endif %}">
+                                    {{ subgraphs.0.run_time_gain }}%
+                                </span>
+                            </p>
+                        {% endif %}
+                    {% endwith %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card border-success mt-3">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">🔍 Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'results:home' %}" class="btn btn-outline-primary">
+                        ← Back to Overview
+                    </a>
+                    <button class="btn btn-outline-success" onclick="history.back()">
+                        ← Back to Model List
+                    </button>
+                    <button class="btn btn-outline-info" onclick="downloadData()">
+                        💾 Download Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if subgraphs %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const subgraphs = {{ subgraphs|safe }};
+    const ctx = document.getElementById('subgraphChart').getContext('2d');
+    
+    const labels = subgraphs.map(s => s.subgraph_name);
+    const data = subgraphs.map(s => s.run_time_gain);
+    const colors = data.map(gain => {
+        if (gain > 5) return '#28a745';      // Green for excellent
+        if (gain > 0) return '#17a2b8';      // Blue for good
+        if (gain > -5) return '#ffc107';     // Yellow for fair
+        return '#dc3545';                    // Red for poor
+    });
+    
+    const chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Runtime Gain (%)',
+                data: data,
+                backgroundColor: colors,
+                borderColor: colors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Subgraph Performance Distribution',
+                    font: {
+                        size: 14,
+                        weight: 'bold'
+                    }
+                },
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Runtime Gain (%)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Subgraphs'
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+});
+
+function downloadData() {
+    const subgraphs = {{ subgraphs|safe }};
+    const csvContent = "data:text/csv;charset=utf-8," 
+        + "Subgraph Name,Runtime Gain (%)\n"
+        + subgraphs.map(s => `${s.subgraph_name},${s.run_time_gain}`).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${model_name}_subgraph_data.csv`.replace(/{{ model_name }}/, "{{ model_name }}"));
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+{% endif %}
+{% endblock %}
