@@ -667,8 +667,8 @@ def mlir_content(request, model_name, fused_kernel_name, source_type):
     """Display the content of MLIR file for a specific fused kernel"""
     
     # Base paths for both feature and withoutfeature directories
-    base_path = "/software/users/ksonawane/tpcfuser/feature/fusion_before_norm/asic1/g3_promo_models"
-    
+    feature_dir_path = os.environ["FEATURE_DIR"]
+    base_path = os.path.join(feature_dir_path, "asic1/g3_promo_models")
     # Determine which path to search based on source_type
     if source_type == "withoutfeature":
         logs_compile_path = os.path.join(base_path, "withoutfeature", model_name, "logs-compile")
