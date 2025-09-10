@@ -15,6 +15,17 @@ ASIC 2 : (basic report generation)
 ENABLE_EXPERIMENTAL_FLAGS=true ENABLE_FUSION_BEFORE_NORM=false FUSER_DEBUG_DATA=1 run_models_tests -l d -n withoutfeature -c gaudi3 -w g3_promo_models_full --jobs promotion
 ENABLE_EXPERIMENTAL_FLAGS=true ENABLE_FUSION_BEFORE_NORM=true FUSER_DEBUG_DATA=1 run_models_tests -l d -n feature -c gaudi3 -w g3_promo_models_full --jobs promotion --ref_name withoutfeature
 ```
+## Expected Directory structure:
+```
+(venv) ksonawan@ksonawan-vm-u24:fusion_before_norm $ tree -d -L 2
+.
+├── asic1
+│   └── g3_promo_models
+└── asic2
+    └── g3_promo_models_full
+
+5 directories
+```
 # Run:
 ```
 cd workspace
